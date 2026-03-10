@@ -1,0 +1,23 @@
+
+
+program{
+
+    int valorUno; 
+    int valorDos; 
+    int resultado;
+    int exito; 
+    int error;
+
+    valorUno = 5; 
+    valorDos = 10; 
+    resultado = valorUno + valorDos;
+
+
+
+    if(resultado > 10){
+        exito = 1; 
+    } else {
+        error = 0; 
+    }
+    
+}
