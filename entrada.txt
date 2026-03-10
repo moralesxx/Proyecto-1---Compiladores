@@ -1,34 +1,34 @@
 program {
     // 1. Declaraciones e inicializaciones
-    int x = 10;
-    int y = 5;
-    float pi = 3.14;
-    bool activo = 1; // En lógica, 1 es True
-    int resultado = 0;
+    int a = 20;
+    int b = 4;
+    float e = 2.71;
+    bool habilitado = 1; 
+    int total = 0;
 
-    // 2. Aritmética con jerarquía (Multiplicación antes que suma)
-    // 10 + 5 * 2 = 20
-    resultado = x + y * 2;
+    // 2. Aritmética con jerarquía
+    // 20 - 4 * 3 = 20 - 12 = 8
+    total = a - b * 3;
 
-    // 3. Condicional con lógica compuesta (AND, OR, NOT)
-    if (resultado > 15 && activo == 1) {
+    // 3. Condicional con lógica compuesta
+    if (total < 10 && habilitado == 1) {
         // Bloque verdadero
-        x = x + 100;
+        a = a * 2; // a se vuelve 40
         
         // 4. Condicional Anidado
-        if (x >= 110) {
-            y = y * y; // 5 * 5 = 25
+        if (a > 30) {
+            b = b + 16; // 4 + 16 = 20
         } else {
-            y = 0;
+            b = 1;
         }
     } else {
-        // Este bloque no debería ejecutarse
-        resultado = 999;
+        // Bloque de escape
+        total = -1;
     }
 
     // 5. Prueba de paréntesis y flotantes
-    // (10 + 25) / 5 = 7
-    int calculoFinal = (x - 90 + y) / 5;
+    // (40 + 20) / 10 = 6
+    int balance = (a + b) / 10;
     
-    float area = pi * 10;
+    float logaritmo = e * 2;
 }
