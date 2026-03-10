@@ -1,5 +1,3 @@
-
-
 program{
 
     int valorUno; 

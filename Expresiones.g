@@ -1,65 +1,36 @@
 grammar Expresiones;
 
-// --- REGLAS SINTÁCTICAS ---
-root : PROGRAMA LLAVE_IZQ instrucciones+ LLAVE_DER EOF # Prog ;
+
+//NO DEJAR QUEMADO, VOLVERLO TOKEN, LO UNICO QUEMADO SON PALABRAS RESERVADAS.
+root : 'program' '{' instrucciones+ '}' EOF # Prog ;
 
 instrucciones
-    : declaracion PUNTO_COMA                 #InstrDecl
-    | asignacion PUNTO_COMA                  #InstrAsig
-    | SI PAR_IZQ condicion PAR_DER bloque (SINO bloque)? #InstrIf
+    : declaracion ';'                       #InstrDecl
+    | asignacion ';'                        #InstrAsig
+    | 'if' '(' exprRelacional ')' bloque ('else' bloque)? #InstrIf
     ;
 
-bloque : LLAVE_IZQ instrucciones* LLAVE_DER ;
+bloque : '{' instrucciones* '}' ;
 
-declaracion : TIPO ID (ASIGNACION expr)? ; 
+declaracion : 'int' ID ;
 
-asignacion : ID ASIGNACION expr ;
+asignacion : ID '=' expr ;
 
-condicion
-    : condicion O_LOGICO condicion          #Logica
-    | condicion Y_LOGICO condicion          #Logica
-    | NO_LOGICO condicion                   #NotLogica
-    | expr op=(MAYOR | MENOR | IGUAL | MAYOR_IGUAL | MENOR_IGUAL | DIFERENTE) expr #Relacional
-    | PAR_IZQ condicion PAR_DER             #ParentesisCond
+expr: expr (MUL | DIV) expr    #Aritmetica
+    | expr (SUM | RES) expr    #Aritmetica
+    | NUM                      #Numero
+    | ID                       #Variable
+    | '(' expr ')'             #Parentesis
     ;
 
-expr: expr (MULT | DIV) expr                #Aritmetica
-    | expr (SUMA | RESTA) expr              #Aritmetica
-    | NUMERO                                #Numero
-    | ID                                    #Variable
-    | PAR_IZQ expr PAR_DER                  #ParentesisExpr
+exprRelacional
+    : expr op=( '>' | '<' | '==' | '>=' | '<=' | '!=' ) expr #Relacional
     ;
 
-// --- REGLAS LÉXICAS ---
-PROGRAMA : 'program' ;
-SI       : 'if' ;
-SINO     : 'else' ;
-TIPO     : 'int' | 'float' | 'bool' ; 
-
-LLAVE_IZQ : '{' ; 
-LLAVE_DER : '}' ;
-PAR_IZQ   : '(' ;
-PAR_DER   : ')' ;
-PUNTO_COMA: ';' ; 
-ASIGNACION: '=' ; 
-
-SUMA  : '+' ; 
-RESTA : '-' ;
-MULT  : '*' ;
-DIV   : '/' ;
-
-MAYOR       : '>' ;
-MENOR       : '<' ;
-IGUAL       : '==' ;
-DIFERENTE   : '!=' | '<>' ;
-MAYOR_IGUAL : '>=' ;
-MENOR_IGUAL : '<=' ;
-
-Y_LOGICO  : '&&' ;
-O_LOGICO  : '||' ;
-NO_LOGICO : '!' ;
-
-ID     : [a-zA-Z][a-zA-Z0-9]* ;
-NUMERO : [0-9]+ ('.' [0-9]+)? ;
-WS     : [ \t\r\n]+ -> skip ;
+ID  : [a-zA-Z][a-zA-Z0-9]* ;
+NUM : [0-9]+ ;
+SUM : '+' ;
+RES : '-' ;
+MUL : '*' ;
+DIV : '/' ;
 COMENTARIO : '//' ~[\n\r]* -> skip ;

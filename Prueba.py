@@ -1,40 +1,61 @@
 import sys
+import os
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from antlr4 import *
 from ExpresionesLexer import ExpresionesLexer
 from ExpresionesParser import ExpresionesParser
 from Visitor import Visitor
 
 def seleccionar_archivo():
-    root = tk.Tk()
-    root.withdraw()
-    ruta = filedialog.askopenfilename(title="Seleccionar código fuente", filetypes=(("Texto", "*.txt"),))
-    root.destroy()
-    return ruta
+    if len(sys.argv) < 2:
+        print("Uso: python3 Prueba.py <archivo>")
+        sys.exit(1)
+
+    archivo_ruta = sys.argv[1]
+
+    if not os.path.isfile(archivo_ruta):
+        print(f"Error: El archivo '{archivo_ruta}' no existe.")
+        sys.exit(1)
+
+    return archivo_ruta
 
 def main():
-    ruta = seleccionar_archivo()
-    if not ruta: return
+    # --- PASO 1: SELECCIONAR ARCHIVO DINÁMICAMENTE ---
+    archivo_ruta = seleccionar_archivo()
+
+    if not archivo_ruta:
+        print("No se seleccionó ningún archivo. Saliendo...")
+        return
+
     try:
-        input_stream = FileStream(ruta, encoding='utf-8')
+        # --- PASO 2: LECTURA Y ANÁLISIS ---
+        input_stream = FileStream(archivo_ruta, encoding='utf-8')
         lexer = ExpresionesLexer(input_stream)
-        stream = CommonTokenStream(lexer)
-        parser = ExpresionesParser(stream)
+        token_stream = CommonTokenStream(lexer)
+        parser = ExpresionesParser(token_stream)
+        
+        # Generamos el árbol desde la regla 'root' definida en tu .g4
         tree = parser.root()
 
+        # Verificar errores sintácticos según requerimiento 
         if parser.getNumberOfSyntaxErrors() > 0:
-            print("\n[ERROR] Se detectaron errores sintácticos.")
+            print(f"\n[ERROR] El archivo '{archivo_ruta}' tiene errores gramaticales.")
         else:
-            v = Visitor()
-            v.visit(tree)
-            print("\n--- TABLA DE SÍMBOLOS FINAL ---")
-            print(f"{'ID':<15} | {'Tipo':<10} | {'Valor':<10}")
-            print("-" * 40)
-            for n, s in v.tabla_simbolos.items():
-                print(f"{n:<15} | {s.tipo:<10} | {s.valor}")
+            print(f"\n[OK] Archivo '{archivo_ruta}' cargado correctamente.")
+            print("-" * 30)
+            
+            # --- PASO 3: EJECUCIÓN CON VISITOR ---
+            # El visitor calculará e imprimirá los resultados [cite: 25, 75]
+            visitor = Visitor()
+            visitor.visit(tree)
+            
+            print("-" * 30)
+            print("Ejecución finalizada con éxito.")
+            print(f"Estado de la memoria: {visitor.memoria}")
+
     except Exception as e:
-        print(f"Error durante la ejecución: {e}")
+        print(f"Error al procesar el archivo: {e}")
 
 if __name__ == '__main__':
     main()

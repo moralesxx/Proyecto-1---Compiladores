@@ -44,26 +44,6 @@ class ExpresionesVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by ExpresionesParser#Relacional.
-    def visitRelacional(self, ctx:ExpresionesParser.RelacionalContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by ExpresionesParser#ParentesisCond.
-    def visitParentesisCond(self, ctx:ExpresionesParser.ParentesisCondContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by ExpresionesParser#NotLogica.
-    def visitNotLogica(self, ctx:ExpresionesParser.NotLogicaContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by ExpresionesParser#Logica.
-    def visitLogica(self, ctx:ExpresionesParser.LogicaContext):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by ExpresionesParser#Numero.
     def visitNumero(self, ctx:ExpresionesParser.NumeroContext):
         return self.visitChildren(ctx)
@@ -79,8 +59,13 @@ class ExpresionesVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by ExpresionesParser#ParentesisExpr.
-    def visitParentesisExpr(self, ctx:ExpresionesParser.ParentesisExprContext):
+    # Visit a parse tree produced by ExpresionesParser#Parentesis.
+    def visitParentesis(self, ctx:ExpresionesParser.ParentesisContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by ExpresionesParser#Relacional.
+    def visitRelacional(self, ctx:ExpresionesParser.RelacionalContext):
         return self.visitChildren(ctx)
 
 

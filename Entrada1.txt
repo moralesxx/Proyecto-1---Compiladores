@@ -1,0 +1,23 @@
+program {
+    
+    int x;
+    int y;
+    int resultado;
+    int control;
+
+    x = 10;
+    y = 20;
+    
+    // Prueba de aritmética y precedencia
+    resultado = (x + y) * 2 / 5; 
+    
+    // Prueba de condicionales y operadores relacionales
+    if (resultado > 5) {
+        control = 1;
+    } else {
+        control = 0;
+    }
+
+    // Prueba de asignación con variables existentes
+    resultado = resultado + x;
+}
