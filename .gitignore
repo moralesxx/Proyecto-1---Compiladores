@@ -1,4 +1,19 @@
-venv/
-__pycache__/
-*.interp
+# --- ANTLR4 Archivos Generados ---
+.antlr/
 *.tokens
+*.interp
+
+# Archivos de Python generados (si usas el target Python)
+*Lexer.py
+*Parser.py
+*Visitor.py
+*Listener.py
+
+# Archivos de Java (si se generan por defecto)
+*.class
+*.java
+
+# --- Entorno de desarrollo ---
+__pycache__/
+.venv/
+.vscode/
