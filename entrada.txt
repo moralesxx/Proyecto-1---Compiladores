@@ -1,34 +1,29 @@
 program {
-    // 1. Declaraciones e inicializaciones
-    int a = 20;
-    int b = 4;
-    float e = 2.71;
-    bool habilitado = 1; 
-    int total = 0;
+    // 1. Datos del estudiante
+    float nota1 = 8.5;
+    float nota2 = 9.0;
+    float nota3 = 6.0;
+    
+    // 2. Cálculo del promedio simple
+    float promedio = (nota1 + nota2 + nota3) / 3;
 
-    // 2. Aritmética con jerarquía
-    // 20 - 4 * 3 = 20 - 12 = 8
-    total = a - b * 3;
+    // 3. Variables de estado
+    bool aprobado = 0;
+    int puntosExtra = 0;
 
-    // 3. Condicional con lógica compuesta
-    if (total < 10 && habilitado == 1) {
-        // Bloque verdadero
-        a = a * 2; // a se vuelve 40
+    // 4. Lógica de aprobación (Si el promedio es mayor o igual a 7)
+    if (promedio >= 7.0) {
+        aprobado = 1;
         
-        // 4. Condicional Anidado
-        if (a > 30) {
-            b = b + 16; // 4 + 16 = 20
-        } else {
-            b = 1;
+        // Si además es una nota excelente, damos puntos extra
+        if (promedio > 8.5) {
+            puntosExtra = 5;
         }
     } else {
-        // Bloque de escape
-        total = -1;
+        aprobado = 0;
+        puntosExtra = 0;
     }
 
-    // 5. Prueba de paréntesis y flotantes
-    // (40 + 20) / 10 = 6
-    int balance = (a + b) / 10;
-    
-    float logaritmo = e * 2;
+    // 5. Ajuste final de nota si tuvo puntos extra
+    float notaFinal = promedio + puntosExtra;
 }
