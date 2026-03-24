@@ -3,17 +3,24 @@
 *.tokens
 *.interp
 
-# Archivos de Python generados (si usas el target Python)
+# Archivos de Python generados (Target Python)
 *Lexer.py
 *Parser.py
 *Visitor.py
 *Listener.py
 
-# Archivos de Java (si se generan por defecto)
+# Archivos de Java (Generados por defecto)
 *.class
 *.java
 
-# --- Entorno de desarrollo ---
+# --- Entorno de desarrollo y Librerías ---
 __pycache__/
+venv/
 .venv/
 .vscode/
+.idea/
+*.pyc
+
+# --- Archivos de sistema ---
+.DS_Store
+Thumbs.db
