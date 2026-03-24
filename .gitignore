@@ -1,4 +1,21 @@
-venv/
-__pycache__/
-*.interp
+# --- ANTLR4 ---
+.antlr/
 *.tokens
+*.interp
+*Lexer.py
+*Parser.py
+*Visitor.py
+*Listener.py
+
+# --- Java ---
+*.class
+*.java
+
+# --- Python ---
+__pycache__/
+venv/
+.venv/
+*.pyc
+
+# --- VS Code ---
+.vscode/
