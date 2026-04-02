@@ -2,18 +2,16 @@
 .antlr/
 *.tokens
 *.interp
-
-# Archivos de Python generados (Target Python)
 *Lexer.py
 *Parser.py
 *Visitor.py
 *Listener.py
 
-# Archivos de Java (Generados por defecto)
+# --- Archivos de Java (Generados por ANTLR por defecto) ---
 *.class
 *.java
 
-# --- Entorno de desarrollo y Librerías ---
+# --- Entorno de Desarrollo y Python ---
 __pycache__/
 venv/
 .venv/
@@ -21,6 +19,6 @@ venv/
 .idea/
 *.pyc
 
-# --- Archivos de sistema ---
+# --- Archivos de Sistema ---
 .DS_Store
 Thumbs.db
