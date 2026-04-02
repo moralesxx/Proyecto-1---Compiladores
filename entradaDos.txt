@@ -1,23 +1,31 @@
 
+program {
+    // Prueba de tipos y expresiones aritméticas
+    int a = 100;
+    int b = 20;
+    float c = (a * b) / (10 + 5.5);
+    bool activo = 1; // Suponiendo que el lenguaje usa 1/0 para bool
 
-program{
+    // Actualización de variables (asignacion)
+    a = a - 1;
+    b = b + a;
 
-    int valorUno; 
-    int valorDos; 
-    int resultado;
-    int exito; 
-    int error;
-
-    valorUno = 5; 
-    valorDos = 10; 
-    resultado = valorUno + valorDos;
-
-
-
-    if(resultado > 10){
-        exito = 1; 
+    // Prueba de condicionales con SINO (else)
+    if (a > b || b == 200) {
+        a = 0;
     } else {
-        error = 0; 
+        // Bloque con múltiples instrucciones
+        int temporal = a * 2;
+        b = temporal + b;
     }
-    
+
+    // Prueba de operador NO y paréntesis en condiciones
+    if (!(a < 0) && (b >= 100)) {
+        int resultado = 500;
+        
+        // Un if simple sin else
+        if (resultado != 0) {
+            float ajuste = 0.5;
+        }
+    }
 }

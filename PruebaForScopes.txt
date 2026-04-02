@@ -1,0 +1,15 @@
+program {
+    int x = 100;
+    string msg = "Valor de x local en el for: ";
+
+    print("--- Probando Ciclo For y Scopes ---");
+
+    for (int i = 0; i < 3; i = i + 1) {
+        int x = i; // Shadowing: este 'x' es diferente al global 
+        print(msg);
+        print(x);
+    }
+
+    print("Valor de x global despues del for (debe ser 100):");
+    print(x);
+}

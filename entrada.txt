@@ -1,34 +1,29 @@
 program {
-    // 1. Declaraciones e inicializaciones
-    int x = 10;
-    int y = 5;
-    float pi = 3.14;
-    bool activo = 1; // En lógica, 1 es True
-    int resultado = 0;
+    // 1. Datos del estudiante
+    float nota1 = 8.5;
+    float nota2 = 9.0;
+    float nota3 = 6.0;
+    
+    // 2. Cálculo del promedio simple
+    float promedio = (nota1 + nota2 + nota3) / 3;
 
-    // 2. Aritmética con jerarquía (Multiplicación antes que suma)
-    // 10 + 5 * 2 = 20
-    resultado = x + y * 2;
+    // 3. Variables de estado
+    bool aprobado = 0;
+    int puntosExtra = 0;
 
-    // 3. Condicional con lógica compuesta (AND, OR, NOT)
-    if (resultado > 15 && activo == 1) {
-        // Bloque verdadero
-        x = x + 100;
+    // 4. Lógica de aprobación (Si el promedio es mayor o igual a 7)
+    if (promedio >= 7.0) {
+        aprobado = 1;
         
-        // 4. Condicional Anidado
-        if (x >= 110) {
-            y = y * y; // 5 * 5 = 25
-        } else {
-            y = 0;
+        // Si además es una nota excelente, damos puntos extra
+        if (promedio > 8.5) {
+            puntosExtra = 5;
         }
     } else {
-        // Este bloque no debería ejecutarse
-        resultado = 999;
+        aprobado = 0;
+        puntosExtra = 0;
     }
 
-    // 5. Prueba de paréntesis y flotantes
-    // (10 + 25) / 5 = 7
-    int calculoFinal = (x - 90 + y) / 5;
-    
-    float area = pi * 10;
+    // 5. Ajuste final de nota si tuvo puntos extra
+    float notaFinal = promedio + puntosExtra;
 }

@@ -1,0 +1,12 @@
+program {
+    // 1. Error de Declaración: Falta el tipo (int, float, bool)
+    x = 10; 
+
+    // 2. Error Sintáctico: El 'if' no tiene paréntesis en la condición
+    if x > 5 {
+        int resultado = x * 2;
+    }
+
+    // 3. Error de Expresión: Falta el operando después del '+'
+    int suma = 10 + ;
+}

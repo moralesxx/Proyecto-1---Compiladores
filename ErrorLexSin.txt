@@ -1,0 +1,5 @@
+program {
+    int @variable = 10; // Error léxico: @
+    float y = 5.5       // Error sintáctico: falta ;
+    print(y);
+}

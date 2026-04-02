@@ -1,0 +1,13 @@
+program {
+    int a = 5;
+    string b = "UMG";
+
+    // Error 1: Operación prohibida (int * string) [cite: 50]
+    int error1 = a * b; 
+
+    // Error 2: Variable no declarada [cite: 50]
+    print(variableInexistente);
+
+    // Error 3: Redeclaración en el mismo ámbito [cite: 44, 50]
+    int a = 10; 
+}

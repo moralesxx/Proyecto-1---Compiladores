@@ -1,4 +1,4 @@
-# --- ANTLR4 ---
+# --- ANTLR4 Archivos Generados ---
 .antlr/
 *.tokens
 *.interp
@@ -7,15 +7,18 @@
 *Visitor.py
 *Listener.py
 
-# --- Java ---
+# --- Archivos de Java (Generados por ANTLR por defecto) ---
 *.class
 *.java
 
-# --- Python ---
+# --- Entorno de Desarrollo y Python ---
 __pycache__/
 venv/
 .venv/
+.vscode/
+.idea/
 *.pyc
 
-# --- VS Code ---
-.vscode/
+# --- Archivos de Sistema ---
+.DS_Store
+Thumbs.db

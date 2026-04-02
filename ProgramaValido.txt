@@ -1,0 +1,17 @@
+program {
+    int x = 5;
+    string mensaje = "Iteracion numero: ";
+    
+    print("--- Inicio de Bucle ---");
+    
+    while (x > 0) {
+        int temp = x * 2; // Variable en scope local
+        print(mensaje);
+        print(x);
+        print("Resultado temp:");
+        print(temp);
+        x = x - 1;
+    }
+    
+    print("--- Fin del Programa ---");
+}
