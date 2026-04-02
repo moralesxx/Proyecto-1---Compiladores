@@ -1,0 +1,10 @@
+program {
+    int a = 10;
+    string b = "Hola";
+    
+    a = b;              // Error: No se puede asignar string a int
+    print(c);           // Error: Variable 'c' no declarada
+    
+    bool flag = true;
+    int res = a + flag; // Error: Operación aritmética no válida con bool
+}

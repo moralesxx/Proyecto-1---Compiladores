@@ -1,0 +1,16 @@
+program {
+    int entero = 10;
+    float decimal = 20.5;
+    string texto = "Resultado de suma mixta: ";
+    bool esMayor = true;
+
+    float suma = entero + decimal; // Coerción de int a float [cite: 26]
+
+    print(texto);
+    print(suma);
+
+    if (suma > 15.0) {
+        print("La condicion logica bool funciona");
+        print(esMayor);
+    }
+}
