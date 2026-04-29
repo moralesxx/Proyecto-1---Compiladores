@@ -1,0 +1,14 @@
+
+
+program {
+    // Este archivo contiene ERRORES SEMÁNTICOS
+
+    // Error 1: variable 'z' usada sin declarar
+    int x = 10;
+    int y = x + z;
+
+    // Error 2: variable 'x' declarada dos veces en el mismo scope
+    int x = 99;
+
+    print(y);
+}

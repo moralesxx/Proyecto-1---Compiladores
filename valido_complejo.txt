@@ -1,0 +1,49 @@
+program {
+    // ── Arreglos y operador módulo ──────────────────
+    int[] nums = [3, 1, 4, 1, 5];
+    int total = 0;
+    int i = 0;
+
+    // Ciclo con break y módulo
+    while (i < 5) {
+        int r = nums[i] % 2;
+        if (r == 0) {
+            total = total + nums[i];
+        }
+        i = i + 1;
+        if (total > 10) { break; }
+    }
+
+    // ── Ciclo for con continue ──────────────────────
+    int suma = 0;
+    for (i = 0; i < 5; i = i + 1) {
+        if (nums[i] == 1) { continue; }
+        suma = suma + nums[i];
+    }
+
+    // ── Función recursiva ───────────────────────────
+    int fibonacci(int n) {
+        if (n <= 1) { return n; }
+        return fibonacci(n - 1) + fibonacci(n - 2);
+    }
+
+    // ── Función con múltiples return ────────────────
+    int maximo(int a, int b) {
+        if (a > b) { return a; }
+        return b;
+    }
+
+    // ── Salidas ─────────────────────────────────────
+    string msg = "Fibonacci(7) = ";
+    print(msg);
+    print(fibonacci(7));
+
+    print("Total pares del arreglo: ");
+    print(total);
+
+    print("Suma sin unos: ");
+    print(suma);
+
+    print("Maximo entre 42 y 17: ");
+    print(maximo(42, 17));
+}

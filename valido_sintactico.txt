@@ -1,0 +1,14 @@
+
+
+program {
+    // Este archivo contiene un ERROR SINTÁCTICO
+    // Falta el paréntesis de cierre en el while
+    // y falta el punto y coma en la declaración
+
+    int x = 5
+    while (x > 0 {
+        x = x - 1;
+    }
+
+    print(x);
+}
