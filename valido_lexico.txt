@@ -1,0 +1,11 @@
+
+
+
+program {
+    // Este archivo contiene un ERROR LÉXICO
+    // El símbolo '@' no es un token válido en el lenguaje
+
+    int x = 10;
+    int y = @25;
+    print(x + y);
+}
