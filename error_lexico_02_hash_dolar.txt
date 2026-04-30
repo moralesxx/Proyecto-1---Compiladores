@@ -1,0 +1,15 @@
+program {
+    // ERROR LÉXICO 2
+    // Los símbolos '#' y '$' NO están definidos en la gramática.
+    // La gramática solo acepta como comentarios '//' (COMENTARIO)
+    // '#' no es token válido — error léxico inmediato
+    // El pipeline se detiene en FASE 1 - Léxico
+
+    int precio = $99;
+
+    # esto no es un comentario válido en este lenguaje
+    int descuento = 10;
+
+    int total = precio - descuento;
+    print(total);
+}
