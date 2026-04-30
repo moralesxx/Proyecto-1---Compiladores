@@ -1,0 +1,23 @@
+program {
+    // ERROR SINTÁCTICO 2
+    // Viola la regla:
+    //   funcion_decl : (TIPO | 'void') ID PAR_IZQ (parametros)? PAR_DER bloque
+    //
+    // Error 1: La función no tiene tipo de retorno antes del nombre.
+    //          La gramática exige (TIPO | 'void') antes del ID.
+    //
+    // Error 2: declaracionArray exige la forma:
+    //          TIPO COR_IZQ COR_DER ID ASIGNACION COR_IZQ argumentos COR_DER
+    //          Aquí falta el ASIGNACION y los valores.
+    //
+    // El pipeline se detiene en FASE 2 - Sintáctico
+
+    cuadrado(int n) {
+        return n * n;
+    }
+
+    int[] nums;
+
+    int resultado = cuadrado(5);
+    print(resultado);
+}
