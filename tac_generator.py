@@ -1,5 +1,3 @@
-
-
 from ExpresionesVisitor import ExpresionesVisitor
 from ExpresionesParser import ExpresionesParser
 
@@ -143,11 +141,12 @@ class TACGenerator(ExpresionesVisitor):
 
         has_else = ctx.SINO() is not None
 
+        # CAMBIO: ctx.condicion() -> ctx.expr()
         if has_else:
             label_false = self.new_label()
-            self._emit_condition(ctx.condicion(), label_true, label_false)
+            self._emit_condition(ctx.expr(), label_true, label_false)
         else:
-            self._emit_condition(ctx.condicion(), label_true, label_end)
+            self._emit_condition(ctx.expr(), label_true, label_end)
 
         # Bloque THEN
         self.emit(f"{label_true}:")
@@ -173,23 +172,33 @@ class TACGenerator(ExpresionesVisitor):
         elif isinstance(cond_ctx, ExpresionesParser.LogicaContext):
             if cond_ctx.O_LOGICO():
                 # OR: si alguna es verdadera, ir al bloque true
+                # CAMBIO: cond_ctx.condicion(idx) -> cond_ctx.expr(idx)
                 mid = self.new_label()
-                self._emit_condition(cond_ctx.condicion(0), label_true, mid)
+                self._emit_condition(cond_ctx.expr(0), label_true, mid)
                 self.emit(f"{mid}:")
-                self._emit_condition(cond_ctx.condicion(1), label_true, label_false)
+                self._emit_condition(cond_ctx.expr(1), label_true, label_false)
             else:
                 # AND: ambas deben ser verdaderas
+                # CAMBIO: cond_ctx.condicion(idx) -> cond_ctx.expr(idx)
                 mid = self.new_label()
-                self._emit_condition(cond_ctx.condicion(0), mid, label_false)
+                self._emit_condition(cond_ctx.expr(0), mid, label_false)
                 self.emit(f"{mid}:")
-                self._emit_condition(cond_ctx.condicion(1), label_true, label_false)
+                self._emit_condition(cond_ctx.expr(1), label_true, label_false)
 
         elif isinstance(cond_ctx, ExpresionesParser.NotLogicaContext):
             # NOT: invertir etiquetas
-            self._emit_condition(cond_ctx.condicion(), label_false, label_true)
+            # CAMBIO: cond_ctx.condicion() -> cond_ctx.expr()
+            self._emit_condition(cond_ctx.expr(), label_false, label_true)
 
-        elif isinstance(cond_ctx, ExpresionesParser.ParentesisCondContext):
-            self._emit_condition(cond_ctx.condicion(), label_true, label_false)
+        elif isinstance(cond_ctx, ExpresionesParser.ParentesisExprContext):
+            # CAMBIO: ParentesisCondContext ahora se unifica en ParentesisExprContext
+            self._emit_condition(cond_ctx.expr(), label_true, label_false)
+        
+        else:
+            # Fallback en caso de pasar una variable o literal booleano directo
+            val = self.visit(cond_ctx)
+            self.emit(f"if {val} == 1 goto {label_true}")
+            self.emit(f"goto {label_false}")
 
     # ─── While ───────────────────────────────────────────────────────────────────
 
@@ -201,7 +210,8 @@ class TACGenerator(ExpresionesVisitor):
         self.loop_stack.append((label_end, label_check))
 
         self.emit(f"{label_check}:")
-        self._emit_condition(ctx.condicion(), label_body, label_end)
+        # CAMBIO: ctx.condicion() -> ctx.expr()
+        self._emit_condition(ctx.expr(), label_body, label_end)
         self.emit(f"{label_body}:")
         self.visit(ctx.bloque())
         self.emit(f"goto {label_check}")
@@ -223,7 +233,8 @@ class TACGenerator(ExpresionesVisitor):
         # Init
         self.visit(ctx.asignacion(0))
         self.emit(f"{label_check}:")
-        self._emit_condition(ctx.condicion(), label_body, label_end)
+        # CAMBIO: ctx.condicion() -> ctx.expr()
+        self._emit_condition(ctx.expr(), label_body, label_end)
         self.emit(f"{label_body}:")
         self.visit(ctx.bloque())
         self.emit(f"{label_update}:")
@@ -309,3 +320,113 @@ class TACGenerator(ExpresionesVisitor):
 
     def visitParentesisExpr(self, ctx):
         return self.visit(ctx.expr())
+
+    # ═════════════════════════════════════════════════════════════════════════════
+    # v4 — Nuevas características (agregadas sin modificar nada de lo anterior)
+    # ═════════════════════════════════════════════════════════════════════════════
+
+    # ─── v4: Operador Ternario ────────────────────────────────────────────────
+    def visitTernario(self, ctx):
+        label_true  = self.new_label()
+        label_false = self.new_label()
+        label_end   = self.new_label()
+        result_temp = self.new_temp()
+
+        # CAMBIO: ctx.condicion() pasa a ser ctx.expr(0). Las ramas se desplazan a expr(1) y expr(2).
+        self._emit_condition(ctx.expr(0), label_true, label_false)
+
+        # Rama verdadera
+        self.emit(f"{label_true}:")
+        val_true = self.visit(ctx.expr(1))
+        self.emit(f"{result_temp} = {val_true}")
+        self.emit(f"goto {label_end}")
+
+        # Rama falsa
+        self.emit(f"{label_false}:")
+        val_false = self.visit(ctx.expr(2))
+        self.emit(f"{result_temp} = {val_false}")
+
+        self.emit(f"{label_end}:")
+        return result_temp
+
+    # ─── v4: Casting Explícito ────────────────────────────────────────────────
+    def visitCastingExpr(self, ctx):
+        tipo_destino = ctx.TIPO().getText()
+        val          = self.visit(ctx.expr())
+        temp         = self.new_temp()
+        self.emit(f"{temp} = cast({tipo_destino}) {val}")
+        return temp
+
+    # ─── v4: Structs ─────────────────────────────────────────────────────────
+    def visitInstrStructDecl(self, ctx):
+        return self.visit(ctx.struct_decl())
+
+    def visitStruct_decl(self, ctx):
+        nombre_tipo = ctx.ID().getText()
+        campos = [f"{c.TIPO().getText()} {c.ID().getText()}"
+                  for c in ctx.campo_struct()]
+        self.emit(f"# struct_def {nombre_tipo} {{ {', '.join(campos)} }}")
+        return None
+
+    def visitInstrStructAsig(self, ctx):
+        return self.visit(ctx.struct_asig())
+
+    def visitStruct_asig(self, ctx):
+        nombre_var = ctx.ID(0).getText()
+        campo      = ctx.ID(1).getText()
+        val        = self.visit(ctx.expr())
+        self.emit(f"{nombre_var}.{campo} = {val}")
+        return None
+
+    def visitAccesoCampo(self, ctx):
+        nombre_var = ctx.ID(0).getText()
+        campo      = ctx.ID(1).getText()
+        temp       = self.new_temp()
+        self.emit(f"{temp} = {nombre_var}.{campo}")
+        return temp
+
+    # ─── v4: Switch / Case ────────────────────────────────────────────────────
+    def visitInstrSwitch(self, ctx):
+        return self.visit(ctx.switch_stmt())
+
+    def visitSwitch_stmt(self, ctx):
+        temp_switch = self.new_temp()
+        val_expr    = self.visit(ctx.expr())
+        self.emit(f"{temp_switch} = {val_expr}")
+
+        cases        = ctx.case_clause()
+        has_default  = ctx.default_clause() is not None
+        label_end    = self.new_label()
+        label_default = self.new_label() if has_default else label_end
+
+        case_labels = [self.new_label() for _ in cases]
+
+        for i, case in enumerate(cases):
+            val_case = self._literal_value(case.literal_valor())
+            self.emit(f"if {temp_switch} == {val_case} goto {case_labels[i]}")
+        self.emit(f"goto {label_default}")
+
+        for i, case in enumerate(cases):
+            self.emit(f"{case_labels[i]}:")
+            self.loop_stack.append((label_end, label_end))
+            for instr in case.instrucciones():
+                self.visit(instr)
+            self.loop_stack.pop()
+            self.emit(f"goto {label_end}")
+
+        if has_default:
+            self.emit(f"{label_default}:")
+            self.loop_stack.append((label_end, label_end))
+            for instr in ctx.default_clause().instrucciones():
+                self.visit(instr)
+            self.loop_stack.pop()
+
+        self.emit(f"{label_end}:")
+        return None
+
+    def _literal_value(self, ctx):
+        if ctx.NUMERO():
+            return ctx.NUMERO().getText()
+        if ctx.STRING():
+            return ctx.STRING().getText()
+        return "0"

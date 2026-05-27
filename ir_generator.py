@@ -26,31 +26,29 @@ def llvm_type_from_str(tipo_str):
 
 class IRGenerator(ExpresionesVisitor):
     def __init__(self):
-        # ── FIX: initialize() está deprecated en versiones nuevas de llvmlite.
-        # Solo llamamos initialize_native_target y initialize_native_asmprinter
-        # de forma segura, ignorando el warning si ya fueron llamados antes.
         try:
             llvm.initialize_native_target()
             llvm.initialize_native_asmprinter()
         except Exception:
-            pass  # Ya fueron inicializados en una llamada previa, no es error
+            pass
 
         self.module = ir.Module(name="compilador_module")
 
-        # Obtener triple de forma segura
         try:
             self.module.triple = llvm.get_default_triple()
         except Exception:
-            pass  # Si falla, llvmlite usa un triple por defecto
+            pass
 
-        self.builder      = None   # ir.IRBuilder activo
-        self.func         = None   # Función LLVM actual
-        self.symbol_table = [{}]   # Pila de scopes: lista de dicts {name: alloca}
-        self.func_table   = {}     # {nombre: ir.Function}
-        self.str_counter  = 0      # Contador de strings / formatos globales
-        self.loop_stack   = []     # Pila: (block_break, block_continue)
+        self.builder      = None   
+        self.func         = None   
+        self.symbol_table = [{}]   
+        self.func_table   = {}     
+        self.str_counter  = 0      
+        self.loop_stack   = []     
 
-        # Declarar printf externo para print
+        self.struct_types  = {}    
+        self.struct_fields = {}    
+
         self._declare_printf()
 
     # ─── printf externo ──────────────────────────────────────────────────────
@@ -60,7 +58,6 @@ class IRGenerator(ExpresionesVisitor):
         self.printf = ir.Function(self.module, printf_ty, name="printf")
 
     def _get_format_str(self, fmt_str):
-        """Crea una constante global para un string de formato."""
         fmt_bytes = (fmt_str + "\0").encode("utf8")
         fmt_type  = ir.ArrayType(ir.IntType(8), len(fmt_bytes))
         global_fmt = ir.GlobalVariable(
@@ -73,7 +70,6 @@ class IRGenerator(ExpresionesVisitor):
         return self.builder.gep(global_fmt, [zero, zero], inbounds=True)
 
     def _emit_print(self, value, ir_type):
-        """Emite una llamada a printf según el tipo del valor."""
         if ir_type == INT_TYPE or ir_type == BOOL_TYPE:
             fmt_ptr = self._get_format_str("%d\n")
             val = value
@@ -117,7 +113,6 @@ class IRGenerator(ExpresionesVisitor):
     # ─── Raíz ────────────────────────────────────────────────────────────────
 
     def visitProg(self, ctx):
-        # Crear función main() : i32
         main_type = ir.FunctionType(INT_TYPE, [])
         main_func = ir.Function(self.module, main_type, name="main")
         self.func = main_func
@@ -279,7 +274,8 @@ class IRGenerator(ExpresionesVisitor):
     # ─── If / Else ───────────────────────────────────────────────────────────
 
     def visitInstrIf(self, ctx):
-        cond_val = self._eval_condition(ctx.condicion())
+        # CAMBIO: ctx.condicion() -> ctx.expr()
+        cond_val = self._eval_condition(ctx.expr())
         has_else = ctx.SINO() is not None
 
         then_block = self.func.append_basic_block("if.then")
@@ -316,7 +312,8 @@ class IRGenerator(ExpresionesVisitor):
 
         self.builder.branch(check_block)
         self.builder.position_at_end(check_block)
-        cond_val = self._eval_condition(ctx.condicion())
+        # CAMBIO: ctx.condicion() -> ctx.expr()
+        cond_val = self._eval_condition(ctx.expr())
         self.builder.cbranch(cond_val, body_block, end_block)
 
         self.builder.position_at_end(body_block)
@@ -342,7 +339,8 @@ class IRGenerator(ExpresionesVisitor):
 
         self.builder.branch(check_block)
         self.builder.position_at_end(check_block)
-        cond_val = self._eval_condition(ctx.condicion())
+        # CAMBIO: ctx.condicion() -> ctx.expr()
+        cond_val = self._eval_condition(ctx.expr())
         self.builder.cbranch(cond_val, body_block, end_block)
 
         self.builder.position_at_end(body_block)
@@ -449,21 +447,29 @@ class IRGenerator(ExpresionesVisitor):
                 return self.builder.icmp_signed(icmp_map[op], left, right)
 
         elif isinstance(cond_ctx, ExpresionesParser.LogicaContext):
-            left_cond  = self._eval_condition(cond_ctx.condicion(0))
-            right_cond = self._eval_condition(cond_ctx.condicion(1))
+            # CAMBIO: cond_ctx.condicion(idx) -> cond_ctx.expr(idx)
+            left_cond  = self._eval_condition(cond_ctx.expr(0))
+            right_cond = self._eval_condition(cond_ctx.expr(1))
             if cond_ctx.O_LOGICO():
                 return self.builder.or_(left_cond, right_cond)
             else:
                 return self.builder.and_(left_cond, right_cond)
 
         elif isinstance(cond_ctx, ExpresionesParser.NotLogicaContext):
-            val = self._eval_condition(cond_ctx.condicion())
+            # CAMBIO: cond_ctx.condicion() -> cond_ctx.expr()
+            val = self._eval_condition(cond_ctx.expr())
             return self.builder.not_(val)
 
-        elif isinstance(cond_ctx, ExpresionesParser.ParentesisCondContext):
-            return self._eval_condition(cond_ctx.condicion())
+        elif isinstance(cond_ctx, ExpresionesParser.ParentesisExprContext):
+            # CAMBIO: ParentesisCondContext migró a ParentesisExprContext
+            return self._eval_condition(cond_ctx.expr())
 
-        raise ValueError(f"Condición no soportada: {type(cond_ctx)}")
+        else:
+            # Fallback por si llega un nodo variable/literal booleano crudo de 'expr'
+            val, ty = self.visit(cond_ctx)
+            if ty == BOOL_TYPE:
+                return val
+            return self.builder.icmp_signed("!=", val, ir.Constant(ty, 0))
 
     # ─── Expresiones → (ir_value, ir_type) ───────────────────────────────────
 
@@ -547,3 +553,330 @@ class IRGenerator(ExpresionesVisitor):
         if from_ty == BOOL_TYPE  and to_ty == INT_TYPE:
             return self.builder.zext(val, INT_TYPE)
         return val
+
+    # ═════════════════════════════════════════════════════════════════════════════
+    # v4 — Nuevas características (agregadas sin modificar nada de lo anterior)
+    # ═════════════════════════════════════════════════════════════════════════════
+
+    # ─── v4: Operador Ternario ────────────────────────────────────────────────
+    def visitTernario(self, ctx):
+        # CAMBIO: La condición es expr(0), las ramas se evalúan en expr(1) y expr(2)
+        cond_val = self._eval_condition(ctx.expr(0))
+
+        true_block  = self.func.append_basic_block("ternary.true")
+        false_block = self.func.append_basic_block("ternary.false")
+        end_block   = self.func.append_basic_block("ternary.end")
+
+        self.builder.cbranch(cond_val, true_block, false_block)
+
+        # Rama verdadera
+        self.builder.position_at_end(true_block)
+        val_true, ty_true = self.visit(ctx.expr(1))
+        true_exit = self.builder.block
+        self.builder.branch(end_block)
+
+        # Rama falsa
+        self.builder.position_at_end(false_block)
+        val_false, ty_false = self.visit(ctx.expr(2))
+        false_exit = self.builder.block
+        self.builder.branch(end_block)
+
+        # Phi node en el bloque de unificación
+        self.builder.position_at_end(end_block)
+
+        result_type = ty_true
+        if ty_true != ty_false:
+            if FLOAT_TYPE in (ty_true, ty_false):
+                result_type = FLOAT_TYPE
+
+        phi = self.builder.phi(result_type, name="ternary.result")
+        phi.add_incoming(self._coerce(val_true,  ty_true,  result_type), true_exit)
+        phi.add_incoming(self._coerce(val_false, ty_false, result_type), false_exit)
+
+        return phi, result_type
+
+    # ─── v4: Casting Explícito ────────────────────────────────────────────────
+    def visitCastingExpr(self, ctx):
+        tipo_destino = ctx.TIPO().getText()
+        val, from_ty = self.visit(ctx.expr())
+        to_ty        = llvm_type_from_str(tipo_destino)
+
+        if from_ty == to_ty:
+            return val, to_ty
+        if from_ty == INT_TYPE   and to_ty == FLOAT_TYPE:
+            return self.builder.sitofp(val, FLOAT_TYPE), FLOAT_TYPE
+        if from_ty == FLOAT_TYPE and to_ty == INT_TYPE:
+            return self.builder.fptosi(val, INT_TYPE),   INT_TYPE
+        if from_ty == BOOL_TYPE  and to_ty == INT_TYPE:
+            return self.builder.zext(val, INT_TYPE),     INT_TYPE
+        if from_ty == INT_TYPE   and to_ty == BOOL_TYPE:
+            zero = ir.Constant(INT_TYPE, 0)
+            return self.builder.icmp_signed("!=", val, zero), BOOL_TYPE
+        if from_ty == FLOAT_TYPE and to_ty == BOOL_TYPE:
+            zero = ir.Constant(FLOAT_TYPE, 0.0)
+            return self.builder.fcmp_ordered("one", val, zero), BOOL_TYPE
+        return val, from_ty
+
+    # ─── v4: Structs ─────────────────────────────────────────────────────────
+    def visitInstrStructDecl(self, ctx):
+        return self.visit(ctx.struct_decl())
+
+    def visitStruct_decl(self, ctx):
+        nombre_tipo = ctx.ID().getText()
+        campos = []
+        for campo in ctx.campo_struct():
+            t = campo.TIPO().getText()
+            n = campo.ID().getText()
+            campos.append((n, t))
+
+        field_types = [llvm_type_from_str(t) for _, t in campos]
+        struct_ir   = ir.LiteralStructType(field_types)
+
+        self.struct_types[nombre_tipo]  = struct_ir
+        self.struct_fields[nombre_tipo] = campos   
+        return None
+
+    def visitInstrStructAsig(self, ctx):
+        return self.visit(ctx.struct_asig())
+
+    def visitStruct_asig(self, ctx):
+        nombre_var = ctx.ID(0).getText()
+        campo      = ctx.ID(1).getText()
+        val, val_ty = self.visit(ctx.expr())
+
+        alloca, struct_ir = self.lookup_var(nombre_var)
+
+        nombre_tipo = None
+        for k, v in self.struct_types.items():
+            if v == struct_ir:
+                nombre_tipo = k
+                break
+
+        if nombre_tipo is None:
+            return None
+
+        campos = self.struct_fields[nombre_tipo]
+        idx    = next((i for i, (n, _) in enumerate(campos) if n == campo), None)
+        if idx is None:
+            return None
+
+        field_ty = llvm_type_from_str(campos[idx][1])
+        val = self._coerce(val, val_ty, field_ty)
+
+        zero    = ir.Constant(INT_TYPE, 0)
+        idx_ir  = ir.Constant(INT_TYPE, idx)
+        ptr     = self.builder.gep(alloca, [zero, idx_ir], inbounds=True)
+        self.builder.store(val, ptr)
+        return None
+
+    def visitAccesoCampo(self, ctx):
+        nombre_var = ctx.ID(0).getText()
+        campo      = ctx.ID(1).getText()
+
+        alloca, struct_ir = self.lookup_var(nombre_var)
+
+        nombre_tipo = None
+        for k, v in self.struct_types.items():
+            if v == struct_ir:
+                nombre_tipo = k
+                break
+
+        if nombre_tipo is None:
+            return ir.Constant(INT_TYPE, 0), INT_TYPE
+
+        campos = self.struct_fields[nombre_tipo]
+        idx    = next((i for i, (n, _) in enumerate(campos) if n == campo), 0)
+        field_ty = llvm_type_from_str(campos[idx][1])
+
+        zero   = ir.Constant(INT_TYPE, 0)
+        idx_ir = ir.Constant(INT_TYPE, idx)
+        ptr    = self.builder.gep(alloca, [zero, idx_ir], inbounds=True)
+        val    = self.builder.load(ptr)
+        return val, field_ty
+
+    # ─── v4: Switch / Case ────────────────────────────────────────────────────
+    def visitInstrSwitch(self, ctx):
+        return self.visit(ctx.switch_stmt())
+
+    def visitSwitch_stmt(self, ctx):
+        val_expr, val_ty = self.visit(ctx.expr())
+
+        if val_ty == FLOAT_TYPE:
+            val_expr = self.builder.fptosi(val_expr, INT_TYPE)
+            val_ty   = INT_TYPE
+
+        cases       = ctx.case_clause()
+        has_default = ctx.default_clause() is not None
+        end_block   = self.func.append_basic_block("switch.end")
+
+        case_blocks    = [self.func.append_basic_block(f"switch.case.{i}")
+                          for i in range(len(cases))]
+        default_block  = (self.func.append_basic_block("switch.default")
+                          if has_default else end_block)
+
+        sw = self.builder.switch(val_expr, default_block)
+        for i, case in enumerate(cases):
+            case_val = self._literal_ir_value(case.literal_valor(), val_ty)
+            sw.add_case(case_val, case_blocks[i])
+
+        for i, case in enumerate(cases):
+            self.builder.position_at_end(case_blocks[i])
+            self.loop_stack.append((end_block, end_block))
+            self.push_scope()
+            for instr in case.instrucciones():
+                if not self.builder.block.is_terminated:
+                    self.visit(instr)
+            self.pop_scope()
+            self.loop_stack.pop()
+            if not self.builder.block.is_terminated:
+                self.builder.branch(end_block)
+
+        if has_default:
+            self.builder.position_at_end(default_block)
+            self.loop_stack.append((end_block, end_block))
+            self.push_scope()
+            for instr in ctx.default_clause().instrucciones():
+                if not self.builder.block.is_terminated:
+                    self.visit(instr)
+            self.pop_scope()
+            self.loop_stack.pop()
+            if not self.builder.block.is_terminated:
+                self.builder.branch(end_block)
+
+        self.builder.position_at_end(end_block)
+        return None
+
+    def _literal_ir_value(self, ctx, expected_type=INT_TYPE):
+        if ctx.NUMERO():
+            txt = ctx.NUMERO().getText()
+            if "." in txt:
+                val = ir.Constant(FLOAT_TYPE, float(txt))
+                if expected_type == INT_TYPE:
+                    return ir.Constant(INT_TYPE, int(float(txt)))
+                return val
+            return ir.Constant(INT_TYPE, int(txt))
+        if ctx.STRING():
+            return ir.Constant(INT_TYPE, 0)
+        return ir.Constant(INT_TYPE, 0)
+
+    def _try_declare_struct_instance(self, tipo_str, var_name):
+        if tipo_str not in self.struct_types:
+            return False
+        struct_ir = self.struct_types[tipo_str]
+        alloca    = self.builder.alloca(struct_ir, name=var_name)
+        self.declare_var(var_name, (alloca, struct_ir))
+        return True
+
+
+
+    # Copiar y pegar dentro de ir_generator.py (Clase IRGenerator)
+    def visitTernario(self, ctx):
+        """
+        Visita la expresión del operador ternario (cond ? expr_true : expr_false).
+        Utiliza la instrucción nativa 'select' de LLVM para mantener el flujo SSA lineal.
+        """
+        # 1. Evaluar la condición
+        cond = self.visit(ctx.expr(0))
+        
+        # Asegurar que la condición sea de tipo i1 (Booleano de LLVM)
+        if cond.type != BOOL_TYPE:
+            cond = self.builder.icmp_signed("!=", cond, ir.Constant(cond.type, 0))
+            
+        # 2. Evaluar ambas ramas de manera segura
+        val_true = self.visit(ctx.expr(1))
+        val_false = self.visit(ctx.expr(2))
+        
+        # 3. Unificar tipos en caso de promoción implícita (int a float) si fuera necesario
+        if val_true.type == FLOAT_TYPE and val_false.type == INT_TYPE:
+            val_false = self.builder.sitofp(val_false, FLOAT_TYPE)
+        elif val_true.type == INT_TYPE and val_false.type == FLOAT_TYPE:
+            val_true = self.builder.sitofp(val_true, FLOAT_TYPE)
+            
+        # 4. Emitir la instrucción select nativa de LLVM
+        return self.builder.select(cond, val_true, val_false)
+
+
+    # Copiar y pegar dentro de ir_generator.py (Clase IRGenerator)
+    def visitCast(self, ctx):
+        """
+        Soporte de casting explícito de tipos (e.g., (int)mi_float o (float)mi_int).
+        Genera instrucciones de conversión nativas reales de LLVM.
+        """
+        # Obtener el nombre del tipo destino (int, float, etc.)
+        tipo_destino_str = ctx.TIPO().getText()
+        
+        # Visitar la expresión interna para obtener su registro virtual actual
+        valor_original = self.visit(ctx.expr())
+        
+        # Conversión de Entero a Flotante (int -> float)
+        if tipo_destino_str == "float" and valor_original.type == INT_TYPE:
+            return self.builder.sitofp(valor_original, FLOAT_TYPE)
+            
+        # Conversión de Flotante a Entero (float -> int)
+        elif tipo_destino_str == "int" and valor_original.type == FLOAT_TYPE:
+            return self.builder.fptosi(valor_original, INT_TYPE)
+            
+        # Si ya coinciden los tipos, se retorna el valor intacto sin alterar nada
+        return valor_original
+
+
+
+    # Copiar y pegar dentro de ir_generator.py (Clase IRGenerator)
+    def visitStruct_decl(self, ctx):
+        """
+        Registra la estructura como un tipo agregado estructurado nativo en LLVM.
+        """
+        nombre_struct = ctx.ID().getText()
+        
+        # Recopilar y mapear los tipos de los campos declarados
+        campos_ctx = ctx.campo_struct()
+        lista_tipos_llvm = []
+        self.struct_fields_map = getattr(self, 'struct_fields_map', {})
+        
+        # Mapear nombres de campos a sus índices físicos relativos
+        mapa_campos = {}
+        for idx, campo in enumerate(campos_ctx):
+            nombre_campo = campo.ID().getText()
+            tipo_campo_str = campo.TIPO().getText()
+            lista_tipos_llvm.append(llvm_type_from_str(tipo_campo_str))
+            mapa_campos[nombre_campo] = idx
+            
+        # Guardar el mapa de índices físicos sin alterar el diccionario global
+        self.struct_fields_map[nombre_struct] = mapa_campos
+        
+        # Crear e identificar el tipo estructurado en el contexto del módulo LLVM
+        st_type = self.module.context.get_identified_type(f"struct.{nombre_struct}")
+        st_type.set_body(*lista_tipos_llvm)
+        
+        # Registrar el tipo para que las Fases 7 y 8 lo reconozcan
+        self.struct_types[nombre_struct] = st_type
+        return None
+
+    def visitAccesoCampo(self, ctx):
+        """
+        Calcula el desplazamiento exacto del campo usando la instrucción GEP (getelementptr)
+        y extrae el valor mediante una instrucción de carga (load).
+        """
+        nombre_var = ctx.ID(0).getText()
+        nombre_campo = ctx.ID(1).getText()
+        
+        # Buscar la dirección física del puntero de la variable en la tabla de símbolos
+        ptr_instancia = self.lookup_symbol(nombre_var)
+        
+        # Extraer el nombre del tipo estructurado a partir del tipo del puntero de LLVM
+        struct_type_llvm = ptr_instancia.type.element
+        nombre_struct = struct_type_llvm.name.replace("struct.", "")
+        
+        # Obtener el índice físico secuencial del campo solicitado
+        mapa_campos = self.struct_fields_map.get(nombre_struct, {})
+        indice_campo = mapa_campos.get(nombre_campo, 0)
+        
+        # Calcular el puntero absoluto hacia el miembro del struct usando instrucciones GEP nativas
+        ptr_campo = self.builder.gep(
+            ptr_instancia, 
+            [ir.Constant(INT_TYPE, 0), ir.Constant(INT_TYPE, indice_campo)],
+            name=f"{nombre_var}.{nombre_campo}.ptr"
+        )
+        
+        # Retornar la carga del valor almacenado en ese campo
+        return self.builder.load(ptr_campo, name=f"{nombre_var}.{nombre_campo}")
