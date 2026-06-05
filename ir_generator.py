@@ -34,6 +34,14 @@ class IRGenerator(ExpresionesVisitor):
 
         self.module = ir.Module(name="compilador_module")
 
+        # ── SOLUCIÓN AL ERROR DE LLC (COMPATIBILIDAD DE VERSIONES DE LLVMLITE) ──
+        # Protegemos con try-except para que conserve la sintaxis clásica (i8*) si 
+        # la versión lo soporta, o continúe normalmente si ya fue removido.
+        try:
+            self.module.context.scope.set_opaque_pointers(False)
+        except AttributeError:
+            pass  # En versiones nuevas de llvmlite ya no existe y no es necesario
+
         try:
             self.module.triple = llvm.get_default_triple()
         except Exception:
@@ -51,6 +59,7 @@ class IRGenerator(ExpresionesVisitor):
 
         self._declare_printf()
 
+        
     # ─── printf externo ──────────────────────────────────────────────────────
 
     def _declare_printf(self):

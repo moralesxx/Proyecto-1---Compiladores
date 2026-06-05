@@ -1177,6 +1177,38 @@ def compile_code():
     return jsonify(result.to_dict())
 
 
+@app.route("/compile_native", methods=["POST"])
+def compile_native():
+    """Ruta para compilar los binarios directamente desde el IR actual de la interfaz"""
+    try:
+        from binary_generator import compile_linux, compile_windows, check_tools
+        data = request.get_json()
+        ir_code = data.get("ir_code", "")
+        target = data.get("target", "linux") # 'linux' o 'windows'
+        
+        if not ir_code.strip():
+            return jsonify({"success": False, "error": "El código IR está vacío."})
+            
+        # Guardar en un archivo temporal o usar el archivo de intercambio establecido
+        target_file = "output.opt.ll"
+        with open(target_file, "w", encoding="utf-8") as f:
+            f.write(ir_code)
+            
+        if target == "linux":
+            res = compile_linux(target_file, output_name="output_linux")
+        else:
+            res = compile_windows(target_file, output_name="output_windows.exe")
+            
+        return jsonify({
+            "success": res.success,
+            "binary_path": res.binary_path,
+            "error": res.error,
+            "time_ms": res.time_ms
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Error en compilación nativa: {str(e)}"})
+
+
 @app.route("/ir_passes", methods=["GET"])
 def get_ir_passes():
     if not IR_MANUAL_OK:
@@ -1196,6 +1228,7 @@ def ir_manual_apply():
     result = apply_manual_passes(ir_code, passes,
                                  run_with_lli=True,
                                  output_file="output.manual.ll")
+    # Al haber agregado .to_dict() en ir_manual.py, esto ya no fallará jamás
     return jsonify(result.to_dict())
 
 

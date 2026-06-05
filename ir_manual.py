@@ -105,6 +105,19 @@ class ManualOptimizationResult:
         self.error = ""
         self.lli_result = {"success": False, "output": "", "error": ""}
 
+    def to_dict(self):
+        """Permite que Flask convierta el resultado directamente a JSON sin errores."""
+        return {
+            "success": self.success,
+            "ir_before": self.ir_before,
+            "ir_after": self.ir_after,
+            "passes_applied": self.passes_applied,
+            "diff": self.diff,
+            "unchanged": self.unchanged,
+            "error": self.error,
+            "lli_result": self.lli_result
+        }
+
 
 # ─── Generación de Diff utilizando la librería diff_match_patch ──────────────
 
