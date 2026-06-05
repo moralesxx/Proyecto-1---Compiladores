@@ -6,6 +6,9 @@ generado por ir_generator.py y devuelve métricas de reducción comparativas.
 """
 
 import re
+import subprocess
+import tempfile
+import os
 from llvmlite import binding as llvm
 
 # ─── Inicialización de LLVM (solo una vez por proceso) ───────────────────────
@@ -227,19 +230,47 @@ def optimize_ir(ir_str: str,
         # ── 2. Métricas ANTES ────────────────────────────────────────────────
         result.metrics_before = _collect_metrics(ir_str)
 
-        # ── 3. Aplicar Pass Manager O3 ───────────────────────────────────────
-        pto = llvm.PipelineTuningOptions()
-        pto.speed_level       = opt_level
-        pto.size_level        = 0
-        pto.loop_interleaving = True
-        pto.loop_unrolling    = True
-
-        pb  = llvm.create_pass_builder(tm, pto)
-        mpm = pb.getModulePassManager()
-        mpm.run(mod, pb)
+        # ── 3. Aplicar optimización O3 ──────────────────────────────────────
+        # Se usa clang-18 -O3 -emit-llvm en lugar del Pass Builder de llvmlite,
+        # porque llvmlite usa LLVM 20 internamente y genera IR con keywords
+        # (e.g. `nuw` en GEP) incompatibles con clang-18/llc-18 del sistema.
+        # Al delegar la optimización a clang-18, el IR resultante es compatible
+        # con las herramientas de compilación disponibles.
+        optimized_ir = ir_str  # fallback: si clang falla, usar IR original
+        _clang_candidates = ["clang-18", "clang-15", "clang"]
+        _opt_ok = False
+        for _clang in _clang_candidates:
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".ll", delete=False,
+                                                 mode="w", encoding="utf-8") as _tmp:
+                    _tmp.write(ir_str)
+                    _tmp_path = _tmp.name
+                _out_path = _tmp_path + ".opt.ll"
+                _res = subprocess.run(
+                    [_clang, "-O3", "-S", "-emit-llvm",
+                     _tmp_path, "-o", _out_path],
+                    capture_output=True, text=True, timeout=30
+                )
+                if _res.returncode == 0 and os.path.exists(_out_path):
+                    with open(_out_path, "r", encoding="utf-8") as _f:
+                        optimized_ir = _f.read()
+                    _opt_ok = True
+                    try:
+                        os.unlink(_tmp_path)
+                        os.unlink(_out_path)
+                    except Exception:
+                        pass
+                    break
+                try:
+                    os.unlink(_tmp_path)
+                except Exception:
+                    pass
+            except FileNotFoundError:
+                continue
+            except Exception:
+                continue
 
         # ── 4. IR optimizado ─────────────────────────────────────────────────
-        optimized_ir = str(mod)
         result.ir_after = optimized_ir
 
         # ── 5. Métricas DESPUÉS ──────────────────────────────────────────────

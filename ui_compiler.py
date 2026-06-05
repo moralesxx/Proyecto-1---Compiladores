@@ -1061,11 +1061,14 @@ function renderDiff(data) {
   }
 
   const html = diff.map(line => {
-    const esc = line.line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    if (line.type === 'header')  return `<div class="diff-header">${esc}</div>`;
-    if (line.type === 'hunk')    return `<div class="diff-hunk">${esc}</div>`;
-    if (line.type === 'added')   return `<span class="diff-added">+ ${esc}</span>`;
-    if (line.type === 'removed') return `<span class="diff-removed">- ${esc}</span>`;
+    // El backend devuelve {operation, text}; normalizamos a {type, line}
+    const rawText = line.text !== undefined ? line.text : (line.line || '');
+    const op      = line.operation !== undefined ? line.operation : (line.type || 'equal');
+    const esc = rawText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if (op === 'insert' || op === 'added')   return `<span class="diff-added">+ ${esc}</span>`;
+    if (op === 'delete' || op === 'removed') return `<span class="diff-removed">- ${esc}</span>`;
+    if (op === 'header')  return `<div class="diff-header">${esc}</div>`;
+    if (op === 'hunk')    return `<div class="diff-hunk">${esc}</div>`;
     return `<span class="diff-same">  ${esc}</span>`;
   }).join('');
 
@@ -1213,7 +1216,10 @@ def compile_native():
 def get_ir_passes():
     if not IR_MANUAL_OK:
         return jsonify({"passes": []})
-    return jsonify({"passes": get_available_passes()})
+    # El frontend espera una lista con {id, label, name, description, category}
+    passes_dict = get_available_passes()
+    passes_list = [{"id": k, **v} for k, v in passes_dict.items()]
+    return jsonify({"passes": passes_list})
 
 
 @app.route("/ir_manual_apply", methods=["POST"])
@@ -1246,7 +1252,14 @@ def ir_manual_run():
         f.write(ir_code)
         tmp = f.name
     try:
-        proc = subprocess.run(["lli", tmp],
+        # lli-18 acepta el IR de llvmlite (LLVM 20); lli genérico puede fallar
+        _lli_cmd = "lli"
+        try:
+            subprocess.run(["lli-18", "--version"], capture_output=True, timeout=3)
+            _lli_cmd = "lli-18"
+        except FileNotFoundError:
+            pass
+        proc = subprocess.run([_lli_cmd, tmp],
                               capture_output=True, text=True, timeout=10)
         return jsonify({
             "success": proc.returncode == 0,

@@ -138,50 +138,27 @@ def parse_semantic_errors(raw_errors):
 
 # ─── Fase 8: compilación a binarios nativos ──────────────────────────────────
 
-# clang-15 coincide con llvmlite 0.47 (LLVM 14 interno) y acepta su IR sin
-# reescribirlo con sintaxis LLVM 17+/18+ que llc-15 rechaza.
-_CLANG_CANDIDATES = ["clang-15", "clang-14", "clang"]
-
-def _run_clang(ll_file, out_bin):
-    """Prueba candidatos de clang en orden. Devuelve (exito, nombre_usado, stderr)."""
-    for clang in _CLANG_CANDIDATES:
-        try:
-            r = subprocess.run(
-                [clang, "-O2", ll_file, "-o", out_bin],
-                capture_output=True, text=True, timeout=30
-            )
-            if r.returncode == 0 and os.path.exists(out_bin):
-                return True, clang, ""
-        except FileNotFoundError:
-            continue
-        except Exception:
-            continue
-    return False, "", "No se encontró clang-15, clang-14 ni clang en el sistema."
-
-
 def _compile_linux_binary(ll_file, out_bin="output_linux"):
     t0 = time.perf_counter()
     obj_file = ll_file.replace(".ll", ".o")
     res = {"success": False, "path": "", "time_ms": 0.0, "output": ""}
     try:
-        ok, clang_used, err = _run_clang(ll_file, out_bin)
+        proc = subprocess.run(
+            ["clang-18", "-O2", ll_file, "-o", out_bin],
+            capture_output=True, text=True, timeout=30
+        )
         elapsed = (time.perf_counter() - t0) * 1000
         res["time_ms"] = round(elapsed, 3)
-        if ok:
+        if proc.returncode == 0 and os.path.exists(out_bin):
             res["success"] = True
             res["path"]    = os.path.abspath(out_bin)
-            res["output"]  = f"Binario Linux generado ({clang_used}): {out_bin}"
+            res["output"]  = f"Binario Linux generado: {out_bin}"
         else:
-            # Fallback: llc-15 acepta el IR de llvmlite sin reescribirlo
+            # Fallback llc + gcc
             llc = subprocess.run(
-                ["llc-15", "-filetype=obj", ll_file, "-o", obj_file],
+                ["llc-18", "-filetype=obj", ll_file, "-o", obj_file],
                 capture_output=True, text=True, timeout=30
             )
-            if llc.returncode != 0:
-                llc = subprocess.run(
-                    ["llc", "-filetype=obj", ll_file, "-o", obj_file],
-                    capture_output=True, text=True, timeout=30
-                )
             if llc.returncode == 0:
                 lnk = subprocess.run(
                     ["gcc", obj_file, "-o", out_bin],
@@ -194,9 +171,13 @@ def _compile_linux_binary(ll_file, out_bin="output_linux"):
                     res["path"]    = os.path.abspath(out_bin)
                     res["output"]  = f"Binario Linux generado (llc+gcc): {out_bin}"
                 else:
-                    res["output"] = lnk.stderr or err or "[Error enlazando binario Linux]"
+                    res["output"] = lnk.stderr or proc.stderr or "[Error enlazando binario Linux]"
             else:
-                res["output"] = llc.stderr or err or "[clang-15/llc no disponibles]"
+                res["output"] = llc.stderr or proc.stderr or "[clang/llc no disponibles]"
+    except FileNotFoundError:
+        elapsed = (time.perf_counter() - t0) * 1000
+        res["time_ms"] = round(elapsed, 3)
+        res["output"]  = "[clang no encontrado. Instalar: sudo apt install clang]"
     except subprocess.TimeoutExpired:
         res["time_ms"] = round((time.perf_counter() - t0) * 1000, 3)
         res["output"]  = "[Timeout compilando binario Linux]"
@@ -216,16 +197,10 @@ def _compile_windows_binary(ll_file, out_exe="output_windows.exe"):
     win_triple = "x86_64-w64-mingw32"
     cross_gcc  = f"{win_triple}-gcc"
     try:
-        # llc-15 acepta el IR de llvmlite sin reescribirlo con sintaxis LLVM 17+/18+
         llc = subprocess.run(
-            ["llc-15", "-mtriple", win_triple, "-filetype=obj", ll_file, "-o", obj_file],
+            ["llc-18", "-mtriple", win_triple, "-filetype=obj", ll_file, "-o", obj_file],
             capture_output=True, text=True, timeout=30
         )
-        if llc.returncode != 0:
-            llc = subprocess.run(
-                ["llc", "-mtriple", win_triple, "-filetype=obj", ll_file, "-o", obj_file],
-                capture_output=True, text=True, timeout=30
-            )
         if llc.returncode != 0:
             res["time_ms"] = round((time.perf_counter() - t0) * 1000, 3)
             res["output"]  = llc.stderr or "[Error llc para Windows]"
@@ -423,14 +398,8 @@ def run_pipeline(
     ir_exec_output = ""
     if os.path.exists(ll_file):
         try:
-            # lli-15 acepta el IR de llvmlite; lli genérico puede ser v18 y falla
-            try:
-                subprocess.run(["lli-15", "--version"], capture_output=True, timeout=3)
-                lli_cmd = "lli-15"
-            except FileNotFoundError:
-                lli_cmd = "lli"
             proc = subprocess.run(
-                [lli_cmd, ll_file],
+                ["lli-18", ll_file],
                 capture_output=True, text=True, timeout=10
             )
             ir_exec_output = proc.stdout + proc.stderr

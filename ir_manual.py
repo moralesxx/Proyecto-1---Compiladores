@@ -161,7 +161,14 @@ def _run_ir_with_lli(ir_str: str) -> dict:
             tmp.write(ir_str)
             tmp_path = tmp.name
 
-        res = subprocess.run(["lli", tmp_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5)
+        # lli-18 acepta el IR de llvmlite (LLVM 20); lli genérico puede ser v18+ y fallar
+        _lli_cmd = "lli"
+        try:
+            subprocess.run(["lli-18", "--version"], capture_output=True, timeout=3)
+            _lli_cmd = "lli-18"
+        except FileNotFoundError:
+            pass
+        res = subprocess.run([_lli_cmd, tmp_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5)
         
         try:
             os.unlink(tmp_path)
